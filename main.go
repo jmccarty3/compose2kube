@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main // import "github.com/sstarcher/compose2kube"
+package main
 
 import (
 	"encoding/json"
@@ -27,6 +27,7 @@ import (
 	"github.com/docker/libcompose/project"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 )
 
 var (
@@ -43,8 +44,8 @@ func main() {
 	flag.Parse()
 
 	p := project.NewProject(&project.Context{
-		ProjectName: "kube",
-		ComposeFile: composeFile,
+		ProjectName:  "kube",
+		ComposeFiles: []string{composeFile},
 	})
 
 	if err := p.Parse(); err != nil {
@@ -56,7 +57,7 @@ func main() {
 
 	for name, service := range p.Configs {
 		pod := &api.Pod{
-			TypeMeta: api.TypeMeta{
+			TypeMeta: unversioned.TypeMeta{
 				Kind:       "Pod",
 				APIVersion: "v1",
 			},
@@ -79,7 +80,7 @@ func main() {
 		}
 
 		if service.CPUShares != 0 {
-			pod.Spec.Containers[0].Resources.Limits[api.ResourceCPU] = *resource.NewQuantity(service.CPUShares, "decimalSI")
+			pod.Spec.Containers[0].Resources.Limits[api.ResourceCPU] = *resource.NewMilliQuantity(service.CPUShares, resource.BinarySI)
 		}
 
 		if service.MemLimit != 0 {
@@ -87,11 +88,11 @@ func main() {
 		}
 
 		// If Privileged, create a SecurityContext and configure it
-		if service.Privileged == true{
+		if service.Privileged == true {
 			priv := true
 			context := &api.SecurityContext{
 				Capabilities: &api.Capabilities{},
-				Privileged: &priv,
+				Privileged:   &priv,
 			}
 			pod.Spec.Containers[0].SecurityContext = context
 		}
@@ -160,7 +161,7 @@ func main() {
 
 func replicationController(name string, pod *api.Pod) *api.ReplicationController {
 	return &api.ReplicationController{
-		TypeMeta: api.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind:       "ReplicationController",
 			APIVersion: "v1",
 		},
